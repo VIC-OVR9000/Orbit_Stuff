@@ -1,0 +1,304 @@
+Web VPython 3.2
+
+
+
+G = 6.67430e-11
+ME = 5.972e24
+#GM
+mu = 398600#km^3/s^2
+Re = 6371.01#km
+
+
+## Begin with initial orbit parameters
+# input on dashboard
+#periapse
+P_o = 60*Re#Kilometers
+#apiapse
+A_o = 60*Re
+#diamter of ellipse
+D_o = P_o +A_o + 2*Re
+# eccentricity
+e0 = (Re + A_o - Re - P_o)/(2*Re +A_o +P_o)
+
+
+## final orbit parameters
+# input on dashboard
+#periapse
+P_f = P_o
+#apiapse
+A_f = A_o
+#diamter of final ellipse
+D_f = P_f +A_f + 2*Re
+# eccentricity
+ef = (Re + A_f - Re - P_f)/(2*Re +A_f +P_f)
+
+
+# Momentum and Velocity/DV calculations Periapse
+H_Po = sqrt((Re+P_o)*(1+e0)*mu) 
+H_Pf = sqrt((Re+P_f)*(1+ef)*mu) ## momentum at P-o for mid-transfer elliptic orbit
+V_Po = H_Po/(Re+P_o)
+V_Pf = H_Pf/(Re+P_f)### velocity at periapse_o! for mid-hohmman transfer.
+DV_Pof = V_Pf - V_Po
+
+# Momentum and Velocity/DV calculations Apiapse
+H_Ao = sqrt((Re+A_o)*(1+e0)*mu) 
+H_Af = sqrt((Re+A_f)*(1+ef)*mu) 
+V_Ao = H_Ao/(Re+ A_o)
+V_Af = H_Af/(Re+ A_f)
+DV_Aof = V_Af - V_Ao
+
+
+#semi-major axis
+a = (P_o + A_o +2*Re )/2
+
+# distance from center to focal point
+c = a - P_o - Re
+
+#semi-minor axis
+b = sqrt(a**2 - c**2)
+
+#Period
+T_o = 2*pi*sqrt(a**3/mu)
+
+# angular speed
+w = 2*pi/T_o
+# time-steps
+#Number of orbits
+N = 0.5
+ts = 1## GLOBAL
+#t = range(0,T_o,ts)
+
+
+# elliptical path of orbit(ideal ellipse)
+## apply w*t later...
+#Ex = a*cos(w*t) +c
+#Ey = b*sin(w*t)
+
+Ex1 = []
+Ey1 = []
+Ez1 = []
+
+t = range(0,N*T_o,ts)
+print(t[0])
+print(len(t))
+
+for i in t:
+  r0 = (P_o + Re)/(1 + e0*cos(w*(t[i]-1)) )
+  d = A_o -P_o
+  n1 = (a+c-d)/ (  (P_o + Re)/(1 + e0*cos(w*0) )  )
+  n2 = n1
+  # model coords.
+  Ex1.append(n1*r0*cos(w*t[i]) +d)
+  Ey1.append( n2*r0*sin(w*t[i]))
+  Ez1.append(0)
+
+
+
+earth = sphere(pos=vector(0,0,0),radius=Re, texture=textures.earth,make_trail=True)
+craft = sphere(radius=1, color=color.yellow,make_trail=True)
+#moon =  sphere(radius=Re/6, color=color.white,make_trail=True)
+g1 = graph(xtitle="LAT", ytitle="LON", width=500, height=250)
+Cgraph = gcurve(color=color.blue, label = "TR", dot=True)
+
+g2 = graph(xtitle="t", ytitle="theta_dot-LAT", width=500, height=250)
+Vgraph = gcurve(color=color.purple, label = "TR", dot=True)
+
+g3 = graph(xtitle="t", ytitle="psi_dot-LON", width=500, height=250)
+Agraph = gcurve(color=color.red, label = "TR", dot=True)
+
+g4 = graph(xtitle="t", ytitle="Alt.", width=500, height=250)
+Rgraph = gcurve(color=color.red, label = "TR", dot=True)
+
+
+# initial Conditions
+
+M_dot = 0#kg/s zero for orbit modling
+#initial Mass of spacecraft
+M_o = 7280 #Kg
+
+
+#initial position/motion of craft(3rd body)
+bR0 = Re+300
+LON = 0*pi/180
+LAT = 0*pi/180# HI ADIZ @ LON -150, LAT -44
+
+bR0x = bR0*sin(LON)*cos(LAT)
+bR0y = bR0*sin(LON)*sin(LAT)
+bR0z = bR0*cos(LON)
+craft.pos = vector(bR0x,bR0y,bR0z)
+
+Thrust = 0# kN
+bRv0 = 7.72988176989
+bRa0 =  0
+
+AV_lat = -0 
+AV_lon = 90*pi/180 
+
+bRv0x = bRv0*sin(AV_lon)*cos(AV_lat)
+bRv0y = bRv0*sin(AV_lon)*sin(AV_lat)
+bRv0z = bRv0*cos(AV_lon)
+
+bRa0x = bRa0*sin(AV_lon)*cos(AV_lat)
+bRa0y = bRa0*sin(AV_lon)*sin(AV_lat)
+bRa0z = bRa0*cos(AV_lon)
+
+## acceleration wrt central body
+AEx = [-(mu/(bR0**3))*bR0x]
+AEy = [-(mu/(bR0**3))*bR0y]
+AEz = [-(mu/(bR0**3))*bR0z]
+#magnitude of acceleration
+AE = [sqrt( (AEx[0]**2) + (AEy[0]**2) )]
+
+MAE0 = AE*sqrt(AEx[0]**2 + AEy[0]**2 + AEz[0]**2)
+
+
+
+
+
+## accel wrt moon
+m2b = 0.0123031469*ME# not used
+# radius from moon body
+mmR = [sqrt(  (Ex1[0] - bR0x)**2 + (Ey1[0] - bR0y)**2 +(Ez1[0] - bR0z)**2 )]
+AMR = [(0.0123031469*mu)/(mmR[0]**3)]
+
+MAMR0 = AMR[0]*mmR[0]
+
+
+
+
+# moon component acceleration
+AMRx = [AMR[0]*(bR0x-Ex1[0]) ]
+AMRy = [AMR[0]*(bR0y-Ey1[0]) ]
+AMRz = [AMR[0]*(bR0z-Ez1[0]) ]
+
+mlist = [M_o]
+
+Xlist = [bR0x]
+Ylist = [bR0y]
+Zlist = [bR0z]
+
+print(Xlist)
+print(Ylist)
+print(Zlist)
+
+Vxlist = [bRv0x]
+Vylist = [bRv0y]
+Vzlist = [bRv0z]
+
+Axlist = [bRa0x]
+Aylist = [bRa0y]
+Azlist = [bRa0z]
+
+theta = [LAT]
+psi = [LON]
+
+imp_count = 0
+
+R_list = [bR0]
+
+
+rng = 0        # <--- ADD THIS LINE BACK IN
+
+
+
+i=1
+while i < 25000:
+  rate(1000)
+  
+  # 1. UPDATE THRUST LOGIC
+  if i > 591.2 : 
+    Thrust = 0 
+    
+  if i > 120 : 
+   # Pitch Program Activation
+    AV_lon =  10*pi/180
+    AV_lat =  -180*pi/180
+  
+  # Calculate CURRENT Thrust Acceleration (a_t)
+  current_mass = mlist[i-1] - M_dot*ts
+  Thrust_acc_X = (Thrust / current_mass) * sin(AV_lon) * cos(AV_lat)
+  Thrust_acc_Y = (Thrust / current_mass) * sin(AV_lon) * sin(AV_lat)
+  Thrust_acc_Z = (Thrust / current_mass) * cos(AV_lon)
+
+  # Total CURRENT Acceleration (a_old)
+  ax_old = AEx[i-1] + AMRx[i-1] + Thrust_acc_X
+  ay_old = AEy[i-1] + AMRy[i-1] + Thrust_acc_Y
+  az_old = AEz[i-1] + AMRz[i-1] + Thrust_acc_Z
+
+  # 2. KINEMATIC POSITION UPDATE (Step 1 of Verlet)
+  x = Xlist[i-1] + Vxlist[i-1]*ts + 0.5 * ax_old * (ts**2) 
+  y = Ylist[i-1] + Vylist[i-1]*ts + 0.5 * ay_old * (ts**2)
+  z = Zlist[i-1] + Vzlist[i-1]*ts + 0.5 * az_old * (ts**2)
+  
+  Xlist.append(x)
+  Ylist.append(y)
+  Zlist.append(z)
+  craft.pos = vector(x, y, z)
+  mlist.append(current_mass)
+
+  # 3. CALCULATE *NEW* ACCELERATION AT *NEW* POSITION (Step 2 of Verlet)
+  R = sqrt(x**2 + y**2 + z**2)
+  
+  # New Earth Gravity
+  AEx_new = -(mu/R**3)*x
+  AEy_new = -(mu/R**3)*y
+  AEz_new = -(mu/R**3)*z
+  
+  AEx.append(AEx_new)
+  AEy.append(AEy_new)
+  AEz.append(AEz_new)
+
+  # New Moon Perturbation
+  # Make sure to handle the case where i exceeds Ex1 length
+  moon_idx = i if i < len(Ex1) else len(Ex1) - 1
+  mmR_new = sqrt((Ex1[moon_idx] - x)**2 + (Ey1[moon_idx] - y)**2 + (Ez1[moon_idx] - z)**2)
+  AMR_new = (0.0123031469*mu)/(mmR_new**3)
+  
+  AMRx_new = AMR_new*(Ex1[moon_idx] - x)
+  AMRy_new = AMR_new*(Ey1[moon_idx] - y)
+  AMRz_new = AMR_new*(Ez1[moon_idx] - z)
+  
+  AMRx.append(AMRx_new)
+  AMRy.append(AMRy_new)
+  AMRz.append(AMRz_new)
+
+  # New Thrust Acceleration (Assuming it remains constant over dt)
+  ax_new = AEx_new + AMRx_new + Thrust_acc_X
+  ay_new = AEy_new + AMRy_new + Thrust_acc_Y
+  az_new = AEz_new + AMRz_new + Thrust_acc_Z
+
+  # 4. KINEMATIC VELOCITY UPDATE (Step 3 of Verlet)
+  Vxlist.append( Vxlist[i-1] + 0.5 * (ax_old + ax_new) * ts )
+  Vylist.append( Vylist[i-1] + 0.5 * (ay_old + ay_new) * ts )
+  Vzlist.append( Vzlist[i-1] + 0.5 * (az_old + az_new) * ts )
+
+  # 5. TELEMETRY & PLOTTING
+  theta.append(acos(Zlist[i-1]/(R))*180/pi)#LAT
+  psi.append(acos(Xlist[i-1]/(R*sin(acos(Zlist[i-1]/(R)))))*180/pi)#LON
+  
+  rng = rng + sqrt((Xlist[i]-Xlist[i-1])**2+(Ylist[i]-Ylist[i-1])**2+(Zlist[i]-Zlist[i-1])**2)
+  
+  if i > floor(M_o/M_dot*ts/10) : 
+    Rgraph.label = "NO FUEL! : impact count_" + str(imp_count) + ": Rng: " + str(round(rng,2))
+  else:
+    Rgraph.label = "TR : impact count_" + str(imp_count) + ": Rng: " + str(round(rng,2))
+    
+  if R < Re:
+    Rgraph.label = "IMPACT! : impact count_" + str(imp_count) + ": Rng: " + str(round(rng,2))
+    imp_count = imp_count +1
+    shng.radius += 3.5
+  elif R < Re and (i > floor(M_o/M_dot*ts/10)):
+    Rgraph.label = "TR: impact count_" + str(imp_count)+ ": Rng: " + str(round(rng,2))
+    shng.radius += 3.5
+    
+  Rgraph.plot(i,R-Re)  
+  Cgraph.plot(theta[i-1],psi[i-1])
+  Vgraph.plot(i,theta[i]-theta[i-1])
+  Agraph.plot(i,psi[i]-psi[i-1])
+  
+  i = i+1
+#ENDOF while 'i' 
+print("END PROGRAM")
+
+print("length of Ex1 = ",len(Ex1))
+print(len(Xlist))
